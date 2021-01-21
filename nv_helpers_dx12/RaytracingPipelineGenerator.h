@@ -67,6 +67,7 @@ rtStateObject = pipeline.Generate();
 
 #include <string>
 #include <vector>
+#include <stdexcept>
 
 namespace nv_helpers_dx12
 {

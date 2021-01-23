@@ -155,4 +155,15 @@ private:
 	void OnButtonDown(UINT32 lParam);
 	void OnMouseMove(UINT8 wParam, UINT32 lParam);
 
+	// #DXR Extra: Per-Instance Data
+	ComPtr<ID3D12Resource> m_planeBuffer;
+	D3D12_VERTEX_BUFFER_VIEW m_planeBufferView;
+	void CreatePlaneVB();
+
+	void D3D12HelloTriangle::CreateGlobalConstantBuffer();
+	ComPtr<ID3D12Resource> m_globalConstantBuffer;
+
+	// #DXR Extra: Per-Instance Data
+	void CreatePerInstanceConstantBuffers();
+	std::vector<ComPtr<ID3D12Resource>> m_perInstanceConstantBuffers;
 };

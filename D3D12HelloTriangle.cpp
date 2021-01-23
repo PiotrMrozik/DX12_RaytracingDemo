@@ -764,7 +764,8 @@ ComPtr<ID3D12RootSignature> D3D12HelloTriangle::CreateRayGenSignature()
 ComPtr<ID3D12RootSignature> D3D12HelloTriangle::CreateHitSignature()
 {
 	nv_helpers_dx12::RootSignatureGenerator rsc;
-	//rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV);
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 0);
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 1);
 
 	// #DXR Extra: Per-Instance Data
 	// The vertex colors may differ for each instance, so it is not possible to
@@ -1011,7 +1012,13 @@ void D3D12HelloTriangle::CreateShaderBindingTable()
 	// boolean visibility in the payload, and does not require external data
 	for (int i = 0; i < 3; i++)
 	{
-		m_sbtHelper.AddHitGroup(L"HitGroup", { (void*)(m_perInstanceConstantBuffers[i]->GetGPUVirtualAddress()) });
+		m_sbtHelper.AddHitGroup(L"HitGroup", 
+			{ 
+				(void*)(m_vertexBuffer->GetGPUVirtualAddress()),
+				(void*)(m_indexBuffer->GetGPUVirtualAddress()),
+				(void*)(m_perInstanceConstantBuffers[i]->GetGPUVirtualAddress()) 
+			}
+		);
 	}
 
 	// The plane also uses a constant buffer for its vertex colors

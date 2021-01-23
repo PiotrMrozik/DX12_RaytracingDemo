@@ -1,11 +1,11 @@
 #include "Common.hlsl"
 
 // #DXR: Color by look-up in the vertex buffer (SRV)
-//struct STriVertex
-//{
-//	float3 vertex;
-//	float4 color;
-//};
+struct STriVertex
+{
+    float3 vertex;
+    float4 color;
+};
 
 // #DXR Extra: Per-Instance Data (Global Constant Buffer, Layout 2)
 struct MyStructColor
@@ -32,7 +32,8 @@ cbuffer Colors : register(b0)
 }
 
 
-//StructuredBuffer<STriVertex> BTriVertex : register(t0);
+StructuredBuffer<STriVertex> BTriVertex : register(t0);
+StructuredBuffer<int> indices : register(t1);
 
 [shader("closesthit")] 
 void ClosestHit(inout HitInfo payload, Attributes attrib) 
@@ -40,7 +41,7 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 	float3 barycentrics =
 		float3(1.0f - attrib.bary.x - attrib.bary.y, attrib.bary.x, attrib.bary.y);
 
-	//uint vertId = 3 * PrimitiveIndex();
+	uint vertId = 3 * PrimitiveIndex();
     
  //   float3 hitColor = BTriVertex[vertId + 0].color * barycentrics.x +
 	//				  BTriVertex[vertId + 1].color * barycentrics.y +
@@ -51,7 +52,7 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
     //float3 C = float3(0.0f, 0.0f, 1.0f);
     
 	// #DXR Extra: Per-Instance Data
-    float3 hitColor = float3(0.7f, 0.7f, 0.7f);
+    //float3 hitColor = float3(0.7f, 0.7f, 0.7f);
 
     // #DXR Extra: Per-Instance Data (Global Constant Buffer, Layout 2)
     //if (InstanceID() < 3)
@@ -60,7 +61,13 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
     //}
     
     // #DXR Extra: Per-Instance Data (Per-Instance Constant Buffer)
-    hitColor = A * barycentrics.x + B * barycentrics.y + C * barycentrics.z;
+    // hitColor = A * barycentrics.x + B * barycentrics.y + C * barycentrics.z;
+    
+    // #DXR Extra: Indexed Geometry
+    float3 hitColor = BTriVertex[indices[vertId + 0]].color * barycentrics.x +
+                      BTriVertex[indices[vertId + 1]].color * barycentrics.y +
+                      BTriVertex[indices[vertId + 2]].color * barycentrics.z;
+    
 	
 	payload.colorAndDistance = float4(hitColor, RayTCurrent());
 }

@@ -28,6 +28,10 @@ public:
 	// Samples override the event handlers to handle specific messages.
 	virtual void OnKeyDown(UINT8 /*key*/)   {}
 	virtual void OnKeyUp(UINT8 /*key*/)     {}
+	
+	// #DXR Extra: Perspective Camera
+	virtual void OnButtonDown(UINT32) {}
+	virtual void OnMouseMove(UINT8, UINT32) {}
 
 	// Accessors.
 	UINT GetWidth() const           { return m_width; }

@@ -17,6 +17,10 @@
 #include "nv_helpers_dx12/RaytracingPipelineGenerator.h"
 #include "nv_helpers_dx12/RootSignatureGenerator.h"
 
+#include "glm/gtc/type_ptr.hpp"
+#include "manipulator.h"
+#include "Windowsx.h"
+
 #include <stdexcept>
 
 D3D12HelloTriangle::D3D12HelloTriangle(UINT width, UINT height, std::wstring name) :
@@ -30,6 +34,9 @@ D3D12HelloTriangle::D3D12HelloTriangle(UINT width, UINT height, std::wstring nam
 
 void D3D12HelloTriangle::OnInit()
 {
+	nv_helpers_dx12::CameraManip.setWindowSize(GetWidth(), GetHeight());
+	nv_helpers_dx12::CameraManip.setLookat(glm::vec3(1.5f, 1.5f, 1.5f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+
 	LoadPipeline();
 	LoadAssets();
 
@@ -953,7 +960,8 @@ void D3D12HelloTriangle::UpdateCameraBuffer()
 	XMVECTOR At  = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
 	XMVECTOR Up  = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 
-	matrices[0] = XMMatrixLookAtRH(Eye, At, Up);
+	const glm::mat4& mat = nv_helpers_dx12::CameraManip.getMatrix();
+	memcpy(&matrices[0].r->m128_f32[0], glm::value_ptr(mat), 16 * sizeof(float));
 
 	float fovAngleY = 45.0f * XM_PI / 180.0f;
 	matrices[1] = XMMatrixPerspectiveFovRH(fovAngleY, m_aspectRatio, 0.1f, 1000.0f);
@@ -970,5 +978,28 @@ void D3D12HelloTriangle::UpdateCameraBuffer()
 	ThrowIfFailed(m_cameraBuffer->Map(0, nullptr, (void**)&pData));
 	memcpy(pData, matrices.data(), m_cameraBufferSize);
 	m_cameraBuffer->Unmap(0, nullptr);
+}
+
+void D3D12HelloTriangle::OnButtonDown(UINT32 lParam)
+{
+	nv_helpers_dx12::CameraManip.setMousePosition(-GET_X_LPARAM(lParam), -GET_Y_LPARAM(lParam));
+}
+
+void D3D12HelloTriangle::OnMouseMove(UINT8 wParam, UINT32 lParam)
+{
+	using nv_helpers_dx12::Manipulator;
+	Manipulator::Inputs inputs;
+	inputs.lmb = wParam & MK_LBUTTON;
+	inputs.mmb = wParam & MK_MBUTTON;
+	inputs.rmb = wParam & MK_RBUTTON;
+
+	if (!inputs.lmb && !inputs.rmb && !inputs.mmb)
+		return; //no mouse button pressed
+
+	inputs.ctrl = GetAsyncKeyState(VK_CONTROL);
+	inputs.shift = GetAsyncKeyState(VK_SHIFT);
+	inputs.alt = GetAsyncKeyState(VK_MENU);
+
+	CameraManip.mouseMove(-GET_X_LPARAM(lParam), -GET_Y_LPARAM(lParam), inputs);
 }
 

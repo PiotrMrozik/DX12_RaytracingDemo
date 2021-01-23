@@ -166,4 +166,9 @@ private:
 	// #DXR Extra: Per-Instance Data
 	void CreatePerInstanceConstantBuffers();
 	std::vector<ComPtr<ID3D12Resource>> m_perInstanceConstantBuffers;
+
+	// #DXR Extra: Depth Buffering
+	void CreateDepthBuffer();
+	ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
+	ComPtr<ID3D12Resource> m_depthStencil;
 };

@@ -144,4 +144,11 @@ private:
 	nv_helpers_dx12::ShaderBindingTableGenerator m_sbtHelper;
 	ComPtr<ID3D12Resource> m_sbtStorage;
 
+	// #DXR Extra: Perspective Camera
+	void CreateCameraBuffer();
+	void UpdateCameraBuffer();
+	ComPtr<ID3D12Resource> m_cameraBuffer;
+	ComPtr<ID3D12DescriptorHeap> m_constHeap;
+	uint32_t m_cameraBufferSize = 0;
+
 };

@@ -16,6 +16,9 @@
     <Filter Include="nv_helpers_dx12">
       <UniqueIdentifier>{98c68b5c-3271-4b60-b29d-12bf6105a9f0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="manipulator">
+      <UniqueIdentifier>{cc50ca68-7b42-41c1-98a0-0d5193d3d69f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h">
@@ -54,6 +57,9 @@
     <ClInclude Include="nv_helpers_dx12\TopLevelASGenerator.h">
       <Filter>nv_helpers_dx12</Filter>
     </ClInclude>
+    <ClInclude Include="manipulator.h">
+      <Filter>manipulator</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -85,6 +91,9 @@
     </ClCompile>
     <ClCompile Include="nv_helpers_dx12\TopLevelASGenerator.cpp">
       <Filter>nv_helpers_dx12</Filter>
+    </ClCompile>
+    <ClCompile Include="manipulator.cpp">
+      <Filter>manipulator</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

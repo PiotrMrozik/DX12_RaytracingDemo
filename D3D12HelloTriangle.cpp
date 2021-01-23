@@ -389,6 +389,7 @@ void D3D12HelloTriangle::PopulateCommandList()
 		// #DXR
 		// Bind the descriptor heap giving access to the top-level acceleration
 		// structure, as well as the raytracing output
+		// #DXR Extra: Perspective Camera - additional camera info
 		std::vector<ID3D12DescriptorHeap*> heaps = { m_srvUavHeap.Get() };
 		m_commandList->SetDescriptorHeaps(static_cast<UINT>(heaps.size()), heaps.data());
 

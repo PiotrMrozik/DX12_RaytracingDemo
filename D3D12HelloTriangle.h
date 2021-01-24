@@ -177,4 +177,8 @@ private:
 	// #DXR Extra: Indexed Geometry
 	ComPtr<ID3D12Resource> m_indexBuffer;
 	D3D12_INDEX_BUFFER_VIEW m_indexBufferView;
+
+	// #DXR Extra: Another ray type
+	ComPtr<IDxcBlob> m_shadowLibrary;
+	ComPtr<ID3D12RootSignature> m_shadowSignature;
 };

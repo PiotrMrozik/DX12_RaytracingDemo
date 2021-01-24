@@ -652,7 +652,7 @@ void D3D12HelloTriangle::CreateTopLevelAS(const std::vector<std::pair<ComPtr<ID3
 	// Gather all the instances into the builder helper
 	for (size_t i = 0; i < instances.size(); i++)
 	{
-		m_topLevelASGenerator.AddInstance(instances[i].first.Get(), instances[i].second, static_cast<UINT>(i), static_cast<UINT>(i));
+		m_topLevelASGenerator.AddInstance(instances[i].first.Get(), instances[i].second, static_cast<UINT>(i), static_cast<UINT>(2*i));
 	}
 
 	// As for the bottom-level AS, the building of the AS requires some scratch space
@@ -711,9 +711,9 @@ void D3D12HelloTriangle::CreateAccelerationStructures()
 	// Just one instance for now
 	m_instances =
 	{
-		{bottomLevelBuffers.pResult, XMMatrixIdentity()},
-		{bottomLevelBuffers.pResult, XMMatrixTranslation(0.6f, 0.0f, 0.0f)},
-		{bottomLevelBuffers.pResult, XMMatrixTranslation(-0.6f, 0.0f, 0.0f)},
+		{bottomLevelBuffers.pResult, XMMatrixScaling(0.5f, 0.5f, 0.5f)},
+		//{bottomLevelBuffers.pResult, XMMatrixTranslation(0.6f, 0.0f, 0.0f)},
+		//{bottomLevelBuffers.pResult, XMMatrixTranslation(-0.6f, 0.0f, 0.0f)},
 		// #DXR Extra: Per-Instance Data
 		{planeBottomLevelBuffers.pResult, XMMatrixTranslation(0.0f, 0.0f, 0.0f)}
 	};
@@ -766,6 +766,9 @@ ComPtr<ID3D12RootSignature> D3D12HelloTriangle::CreateHitSignature()
 	nv_helpers_dx12::RootSignatureGenerator rsc;
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 0);
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV, 1);
+	rsc.AddHeapRangesParameter({
+		{2 /*t2*/, 1, 0, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1 /*2nd slot of the heap*/}
+		});
 
 	// #DXR Extra: Per-Instance Data
 	// The vertex colors may differ for each instance, so it is not possible to
@@ -808,6 +811,11 @@ void D3D12HelloTriangle::CreateRaytracingPipeline()
 	m_missLibrary = nv_helpers_dx12::CompileShaderLibrary(L"Miss.hlsl");
 	m_hitLibrary = nv_helpers_dx12::CompileShaderLibrary(L"Hit.hlsl");
 
+	// #DXR Extra: Another Ray Type
+	m_shadowLibrary = nv_helpers_dx12::CompileShaderLibrary(L"ShadowRay.hlsl");
+	pipeline.AddLibrary(m_shadowLibrary.Get(), {L"ShadowClosestHit", L"ShadowMiss"});
+	m_shadowSignature = CreateHitSignature();
+
 	// In a way similar to DLLs, each library is associated with a number of
 	// exported symbols. This has to be done explicitly in the lines below.
 	// Note that a single library can contain an arbitrary number of symbols,
@@ -847,14 +855,18 @@ void D3D12HelloTriangle::CreateRaytracingPipeline()
 	// #DXR Extra: Per-Instance Data
 	pipeline.AddHitGroup(L"PlaneHitGroup", L"PlaneClosestHit");
 
+	// #DXR Extra: Another Ray Type
+	pipeline.AddHitGroup(L"ShadowHitGroup", L"ShadowClosestHit");
+
 	// The following section associates the root signature to each shader. Note
 	// that we can explicitly show that some shaders share the same root signature
 	// (eg. Miss and ShadowMiss). Note that the hit shaders are now only referred
 	// to as hit groups, meaning that the underlying intersection, any-hit and
 	// closest-hit shaders share the same root signature.
 
+	pipeline.AddRootSignatureAssociation(m_shadowSignature.Get(), { L"ShadowHitGroup" }); // #DXR Extra: Another Ray Type
 	pipeline.AddRootSignatureAssociation(m_rayGenSignature.Get(), { L"RayGen" });
-	pipeline.AddRootSignatureAssociation(m_missSignature.Get(), { L"Miss" });
+	pipeline.AddRootSignatureAssociation(m_missSignature.Get(), { L"Miss", L"ShadowMiss" }); // #DXR Extra: Another Ray Type
 	//pipeline.AddRootSignatureAssociation(m_hitSignature.Get(), { L"HitGroup" });
 	
 	// #DXR Extra: Per-Instance Data
@@ -879,7 +891,7 @@ void D3D12HelloTriangle::CreateRaytracingPipeline()
 	// then requires a trace depth of 1. Note that this recursion depth should be
 	// kept to a minimum for best performance. Path tracing algorithms can be
 	// easily flattened into a simple loop in the ray generation.
-	pipeline.SetMaxRecursionDepth(1);
+	pipeline.SetMaxRecursionDepth(2);
 
 	// Compile the pipeline for execution on the GPU
 	m_rtStateObject = pipeline.Generate();
@@ -1000,6 +1012,9 @@ void D3D12HelloTriangle::CreateShaderBindingTable()
 	// communicate their results through the ray payload
 	m_sbtHelper.AddMissProgram(L"Miss", {});
 
+	// #DXR Extra: Another Ray Type
+	m_sbtHelper.AddMissProgram(L"ShadowMiss", {});
+
 	// Adding the triangle hit shader
 	//m_sbtHelper.AddHitGroup(L"HitGroup", {(void*)(m_vertexBuffer->GetGPUVirtualAddress())});
 	
@@ -1010,7 +1025,7 @@ void D3D12HelloTriangle::CreateShaderBindingTable()
 	// We have 3 triangles, each of which needs to access its own constant buffer
 	// as a root parameter in its primary hit shader. The shadow hit only sets a
 	// boolean visibility in the payload, and does not require external data
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < 1; i++) // Change depending on object (tetrahedron) count
 	{
 		m_sbtHelper.AddHitGroup(L"HitGroup", 
 			{ 
@@ -1019,13 +1034,14 @@ void D3D12HelloTriangle::CreateShaderBindingTable()
 				(void*)(m_perInstanceConstantBuffers[i]->GetGPUVirtualAddress()) 
 			}
 		);
+		m_sbtHelper.AddHitGroup(L"ShadowHitGroup", {});
 	}
 
 	// The plane also uses a constant buffer for its vertex colors
 	//m_sbtHelper.AddHitGroup(L"HitGroup", { (void*)(m_perInstanceConstantBuffers[0]->GetGPUVirtualAddress()) });
 
 	// #DXR Extra: Per-Instance Data (Plane)
-	m_sbtHelper.AddHitGroup(L"PlaneHitGroup", {});
+	m_sbtHelper.AddHitGroup(L"PlaneHitGroup", {heapPointer}); // #DXR Extra: Another Ray Type (add heap pointer)
 
 
 	// Compute the size of the SBT given the number of shaders and their parameters

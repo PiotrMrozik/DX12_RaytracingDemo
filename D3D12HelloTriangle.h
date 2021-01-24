@@ -104,11 +104,14 @@ private:
 		std::vector<std::pair<ComPtr<ID3D12Resource>, uint32_t>> vVertexBuffers,
 		std::vector<std::pair<ComPtr<ID3D12Resource>, uint32_t>> vIndexBuffers = {});
 
+
+	// #DXR Extra: Refitting
 	/// <summary>
 	/// Create the main acceleration structure that holds all instances of the scene
 	/// </summary>
-	/// <param name="instances">pair of BLAS and transform</param>
-	void CreateTopLevelAS(const std::vector<std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>>& instances);
+	/// <param name="instances"> - pair of BLAS and transform</param>
+	/// <param name="updateOnly"> - if true, perform a refit instead of a full build</param>
+	void CreateTopLevelAS(const std::vector<std::pair<ComPtr<ID3D12Resource>, DirectX::XMMATRIX>>& instances, bool updateOnly = false);
 
 	void CreateAccelerationStructures();
 
@@ -181,4 +184,7 @@ private:
 	// #DXR Extra: Another ray type
 	ComPtr<IDxcBlob> m_shadowLibrary;
 	ComPtr<ID3D12RootSignature> m_shadowSignature;
+
+	// #DXR Extra: Refitting
+	uint32_t m_time = 0;
 };

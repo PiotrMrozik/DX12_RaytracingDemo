@@ -777,10 +777,10 @@ void D3D12HelloTriangle::CreateAccelerationStructures()
 	m_instances =
 	{
 		{bottomLevelBuffers.pResult, XMMatrixScaling(0.5f, 0.5f, 0.5f)},
-		//{bottomLevelBuffers.pResult, XMMatrixTranslation(0.6f, 0.0f, 0.0f)},
-		//{bottomLevelBuffers.pResult, XMMatrixTranslation(-0.6f, 0.0f, 0.0f)},
+		{bottomLevelBuffers.pResult, XMMatrixScaling(0.25f, 0.25f, 0.25f) * XMMatrixTranslation(1.0f, 1.0f, -1.0f)},
+		{bottomLevelBuffers.pResult, XMMatrixScaling(5.0f, 5.0f, 5.0f) * XMMatrixTranslation(-5.0f, -5.0f, 5.0f)},
 		// #DXR Extra: Per-Instance Data
-		{planeBottomLevelBuffers.pResult, XMMatrixTranslation(0.0f, 0.0f, 0.0f)}
+		{planeBottomLevelBuffers.pResult, XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, 0.0f, 0.0f)}
 	};
 	CreateTopLevelAS(m_instances);
 
@@ -1090,13 +1090,14 @@ void D3D12HelloTriangle::CreateShaderBindingTable()
 	// We have 3 triangles, each of which needs to access its own constant buffer
 	// as a root parameter in its primary hit shader. The shadow hit only sets a
 	// boolean visibility in the payload, and does not require external data
-	for (int i = 0; i < 1; i++) // Change depending on object (tetrahedron) count
+	for (int i = 0; i < m_instances.size() - 1; i++) // Change depending on object (tetrahedron) count
 	{
 		m_sbtHelper.AddHitGroup(L"HitGroup", 
 			{ 
 				(void*)(m_vertexBuffer->GetGPUVirtualAddress()),
 				(void*)(m_indexBuffer->GetGPUVirtualAddress()),
-				(void*)(m_perInstanceConstantBuffers[i]->GetGPUVirtualAddress()) 
+				heapPointer,
+				(void*)(m_perInstanceConstantBuffers[i]->GetGPUVirtualAddress())
 			}
 		);
 		m_sbtHelper.AddHitGroup(L"ShadowHitGroup", {});
@@ -1112,7 +1113,7 @@ void D3D12HelloTriangle::CreateShaderBindingTable()
 			heapPointer
 		}
 	); // #DXR Extra: Another Ray Type (add heap pointer)
-
+	m_sbtHelper.AddHitGroup(L"ShadowHitGroup", {});
 
 	// Compute the size of the SBT given the number of shaders and their parameters
 	uint32_t sbtSize = m_sbtHelper.ComputeSBTSize();

@@ -1,6 +1,6 @@
 #include "Common.hlsl"
 
-// DXR Extra: Another Ray Type
+// #DXR Extra: Another Ray Type
 struct ShadowHitInfo
 {
     bool isHit;
@@ -54,6 +54,71 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 
 	uint vertId = 3 * PrimitiveIndex();
     
+    // #DXR Custom: Directional Shadows for tetrahedron
+    float3x4 objectToWorld = ObjectToWorld();
+    float3 v1 = mul(objectToWorld, BTriVertex[indices[vertId + 0]].vertex);
+    float3 v2 = mul(objectToWorld, BTriVertex[indices[vertId + 1]].vertex);
+    float3 v3 = mul(objectToWorld, BTriVertex[indices[vertId + 2]].vertex);
+    
+    // #DXR Custom: Directional Shadows for tetrahedron
+    float3 normal = normalize(cross((v2 - v3), (v1 - v2)));
+    if (dot(normal, WorldRayDirection()) > 0.0f)
+    {
+        normal = -normal;
+    }
+    
+    // #DXR Custom: Directional Shadows for tetrahedron
+    float3 lightPos = float3(2.0f, 2.0f, -2.0f);
+    float3 worldOrigin = WorldRayOrigin() + RayTCurrent() * WorldRayDirection();
+    float3 lightDir = normalize(lightPos - worldOrigin);
+    bool isLightValid = dot(normal, lightDir) > 0.0f;
+    
+    RayDesc ray;
+    ray.Origin = worldOrigin;
+    ray.Direction = lightDir;
+    ray.TMin = 0.01f;
+    ray.TMax = 100000.0f;
+    bool hit = true;
+    
+    // Initialize the ray payload
+    ShadowHitInfo shadowPayload;
+    shadowPayload.isHit = false;
+    
+    // Trace the ray
+    TraceRay(
+    // Acceleration structure
+    SceneBVH,
+    // Flags can be used to specify the behavior upon hitting a surface
+    RAY_FLAG_NONE,
+    // Instance inclusion mask
+    0xFF,
+    // Depending on the type of ray, a given object can have several hit
+    // groups attached (ie. what to do when hitting to compute regular
+    // shading, and what to do when hitting to compute shadows). Those hit
+    // groups are specified sequentially in the SBT, so the value below
+    // indicates which offset (on 4 bits) to apply to the hit groups for this
+    // ray. In this sample we now have two hit groups per object, where second
+    // hit group is for shadow rays, hence an offset of 1.
+    1,
+    // The offsets in the SBT can be computed from the object ID, its instance
+    // ID, but also simply by the order the objects have been pushed in the
+    // acceleration structure. This allows the application to group shaders in
+    // the SBT in the same order as they are added in the AS, in which case
+    // the value below represents the stride (4 bits representing the number
+    // of hit groups) between two consecutive objects.
+    0,
+    // Index of the miss shader: shadow miss shader
+    1,
+    // Ray information to trace
+    ray,
+    // Payload associated to the ray, which will be used to communicate
+    // between the hit/miss shaders and the raygen
+    shadowPayload);
+    
+    // #DXR Custom: Directional Shadows
+    float factor = shadowPayload.isHit || !isLightValid ? 0.3f : 1.0f;
+    
+    
     //float3 hitColor = BTriVertex[vertId + 0].color * barycentrics.x +
 	//				    BTriVertex[vertId + 1].color * barycentrics.y +
 	//				    BTriVertex[vertId + 2].color * barycentrics.z;
@@ -80,7 +145,7 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
                       BTriVertex[indices[vertId + 2]].color * barycentrics.z;
     
 	
-	payload.colorAndDistance = float4(hitColor, RayTCurrent());
+	payload.colorAndDistance = float4(hitColor * factor, RayTCurrent());
 }
 
 
@@ -140,8 +205,8 @@ void PlaneClosestHit(inout HitInfo payload, Attributes attrib)
     // shading, and what to do when hitting to compute shadows). Those hit
     // groups are specified sequentially in the SBT, so the value below
     // indicates which offset (on 4 bits) to apply to the hit groups for this
-    // ray. In this sample we only have one hit group per object, hence an
-    // offset of 0. ????
+    // ray. In this sample we now have two hit groups per object, where second
+    // hit group is for shadow rays, hence an offset of 1.
     1,
     // The offsets in the SBT can be computed from the object ID, its instance
     // ID, but also simply by the order the objects have been pushed in the

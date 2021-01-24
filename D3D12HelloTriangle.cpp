@@ -1061,7 +1061,12 @@ void D3D12HelloTriangle::CreateShaderBindingTable()
 	//m_sbtHelper.AddHitGroup(L"HitGroup", { (void*)(m_perInstanceConstantBuffers[0]->GetGPUVirtualAddress()) });
 
 	// #DXR Extra: Per-Instance Data (Plane)
-	m_sbtHelper.AddHitGroup(L"PlaneHitGroup", {heapPointer}); // #DXR Extra: Another Ray Type (add heap pointer)
+	m_sbtHelper.AddHitGroup(L"PlaneHitGroup", 
+		{
+			(void*)(m_planeBuffer->GetGPUVirtualAddress()), // #DXR Custom : Directional Shadows
+			heapPointer
+		}
+	); // #DXR Extra: Another Ray Type (add heap pointer)
 
 
 	// Compute the size of the SBT given the number of shaders and their parameters

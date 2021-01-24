@@ -54,9 +54,9 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 
 	uint vertId = 3 * PrimitiveIndex();
     
- //   float3 hitColor = BTriVertex[vertId + 0].color * barycentrics.x +
-	//				  BTriVertex[vertId + 1].color * barycentrics.y +
-	//				  BTriVertex[vertId + 2].color * barycentrics.z;
+    //float3 hitColor = BTriVertex[vertId + 0].color * barycentrics.x +
+	//				    BTriVertex[vertId + 1].color * barycentrics.y +
+	//				    BTriVertex[vertId + 2].color * barycentrics.z;
 	
     //float3 A = float3(1.0f, 0.0f, 0.0f);
     //float3 B = float3(0.0f, 1.0f, 0.0f);
@@ -88,6 +88,19 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 [shader("closesthit")]
 void PlaneClosestHit(inout HitInfo payload, Attributes attrib)
 {
+    // #DXR Custom: Directional Shadows
+    uint vertId = 3 * PrimitiveIndex();
+    float3 v1 = BTriVertex[vertId + 0].vertex;
+    float3 v2 = BTriVertex[vertId + 1].vertex;
+    float3 v3 = BTriVertex[vertId + 2].vertex;
+    
+    // #DXR Custom: Directional Shadows
+    float3 normal = normalize(cross((v2 - v3), (v1 - v2)));
+    if (dot(normal, WorldRayDirection()) > 0.0f)
+    {
+        normal = -normal;
+    }
+    
     // #DXR Extra: Another Ray Type
     float3 lightPos = float3(2.0f, 2.0f, -2.0f);
     
@@ -95,6 +108,9 @@ void PlaneClosestHit(inout HitInfo payload, Attributes attrib)
     float3 worldOrigin = WorldRayOrigin() + RayTCurrent() * WorldRayDirection();
     
     float3 lightDir = normalize(lightPos - worldOrigin);
+    
+    // #DXR Custom: Directional Shadows
+    bool isLightValid = dot(normal, lightDir) > 0.0f;
     
     // Fire a shadow ray. The direction is hard-coded here, but can be fetched
     // from a constant-buffer
@@ -142,7 +158,8 @@ void PlaneClosestHit(inout HitInfo payload, Attributes attrib)
     // between the hit/miss shaders and the raygen
     shadowPayload);
     
-    float factor = shadowPayload.isHit ? 0.3f : 1.0f;
+    // #DXR Custom: Directional Shadows
+    float factor = shadowPayload.isHit || !isLightValid ? 0.3f : 1.0f;
     
     float3 barycentrics =
         float3(1.0f - attrib.bary.x - attrib.bary.y, attrib.bary.x, attrib.bary.y);

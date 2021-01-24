@@ -187,4 +187,15 @@ private:
 
 	// #DXR Extra: Refitting
 	uint32_t m_time = 0;
+
+	// #DXR Extra: Refitting (Rasterization)
+	/// Per-instance properties
+	struct InstanceProperties
+	{
+		XMMATRIX objectToWorld;
+	};
+
+	ComPtr<ID3D12Resource> m_instanceProperties;
+	void CreateInstancePropertiesBuffer();
+	void UpdateInstancePropertiesBuffer();
 };

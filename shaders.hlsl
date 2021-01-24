@@ -16,6 +16,16 @@ cbuffer CameraParams : register(b0)
     float4x4 projection;
 }
 
+// #DXR Extra: Refitting (Rasterization)
+struct InstanceProperties
+{
+    float4x4 objectToWorld;
+};
+
+StructuredBuffer<InstanceProperties> instanceProps : register(t0);
+
+uint instanceIndex : register(b1);
+
 struct PSInput
 {
 	float4 position : SV_POSITION;
@@ -27,7 +37,18 @@ PSInput VSMain(float4 position : POSITION, float4 color : COLOR)
 	PSInput result;
 
 	// #DXR Extra: Perspective Camera
-    float4 pos = position;
+    // #DXR Extra: Refitting (Rasterization)
+    float4 pos;
+    uint numStructs, stride;
+    instanceProps.GetDimensions(numStructs, stride);
+	if(instanceIndex >= numStructs)
+    {
+        pos = position;
+    }
+    else
+    {
+        pos = mul(instanceProps[instanceIndex].objectToWorld, position);
+    }
     pos = mul(view, pos);
     pos = mul(projection, pos);
 	

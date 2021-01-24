@@ -66,6 +66,9 @@ void D3D12HelloTriangle::OnInit()
 	// as the target image
 	CreateRaytracingOutputBuffer(); // #DXR
 
+	// Create a buffer to store per-instance properties buffer
+	CreateInstancePropertiesBuffer(); // #DXR Extra: Refitting (Rasterization)
+
 	// Create a buffer to store the modelview and perspective camera matrices
 	CreateCameraBuffer(); // #DXR Extra: Perspective Camera
 
@@ -206,12 +209,31 @@ void D3D12HelloTriangle::LoadAssets()
 		range.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
 		constantParameter.InitAsDescriptorTable(1, &range, D3D12_SHADER_VISIBILITY_ALL);
 
-		//OLD: replaced by Perspective Camera
+		// #DXR Extra: Refitting (Rasterization)
+		// Per-Instance properties buffer
+		CD3DX12_ROOT_PARAMETER matricesParameter;
+		CD3DX12_DESCRIPTOR_RANGE matricesRange;
+		matricesRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1 /*desc count*/, 0 /*register*/,
+			0 /*space*/, 1 /*heap slot*/);
+		matricesParameter.InitAsDescriptorTable(1, &matricesRange, D3D12_SHADER_VISIBILITY_ALL);
+
+		// #DXR Extra: Refitting (Rasterization)
+		// Per-instance properties index for the current geometry
+		CD3DX12_ROOT_PARAMETER indexParameter;
+		indexParameter.InitAsConstants(1 /*value count*/, 1 /*register*/);
+
+		// OLD: replaced by Perspective Camera
 		//CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
 		//rootSignatureDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
+		// #DXR Extra: Perspective Camera
+		//CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
+		//rootSignatureDesc.Init(1, &constantParameter, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+		// #DXR Extra: Refitting (Rasterization)
+		std::vector<CD3DX12_ROOT_PARAMETER> params = { constantParameter, matricesParameter, indexParameter };
 		CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-		rootSignatureDesc.Init(1, &constantParameter, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+		rootSignatureDesc.Init(static_cast<UINT>(params.size()), params.data(), 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 
 		ComPtr<ID3DBlob> signature;
@@ -261,6 +283,9 @@ void D3D12HelloTriangle::LoadAssets()
 		// #DXR Extra: Depth Buffering
 		psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 		psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+
+		// #DXR Extra: Refitting (Rasterization)
+		psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 
 		ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)));
 	}
@@ -363,6 +388,8 @@ void D3D12HelloTriangle::OnUpdate()
 {
 	// #DXR Extra: Perspective Camera
 	UpdateCameraBuffer();
+	// #DXR Extra: Refitting (Rasterization)
+	UpdateInstancePropertiesBuffer();
 	
 	// #DXR Extra: Refitting
 	// Increment the time counter at each frame, and update the corresponding instance matrix of the
@@ -441,18 +468,36 @@ void D3D12HelloTriangle::PopulateCommandList()
 		// #DXR Extra: Perspective Camera
 		std::vector<ID3D12DescriptorHeap*> heaps = { m_constHeap.Get() };
 		m_commandList->SetDescriptorHeaps(static_cast<UINT>(heaps.size()), heaps.data());
-		// Set the root descriptor table 0 to the constant buffer descriptor heap
-		m_commandList->SetGraphicsRootDescriptorTable(0, m_constHeap->GetGPUDescriptorHandleForHeapStart());
+
+		//// Set the root descriptor table 0 to the constant buffer descriptor heap
+		//m_commandList->SetGraphicsRootDescriptorTable(0, m_constHeap->GetGPUDescriptorHandleForHeapStart());
+
+		// #DXR Extra: Refitting (Rasterization)
+		D3D12_GPU_DESCRIPTOR_HANDLE handle = m_constHeap->GetGPUDescriptorHandleForHeapStart();
+		// Access to the camera buffer, 1st parameter of the root signature
+		m_commandList->SetGraphicsRootDescriptorTable(0, handle);
+		// Access to the per-instance properties buffer, 2nd parameter of the root signature
+		m_commandList->SetGraphicsRootDescriptorTable(1, handle);
+		// Instance index in the per-instance properties buffer, 3rd parameter of the root signature
+		// Here we set the value to 0, and since we have only 1 constant, the offset is 0 as well
+		//m_commandList->SetGraphicsRoot32BitConstant(2, 0, 0); // This is no longer needed - constant is set in for loop drawing the tetrahedrons
+
 
 		const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
 		m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
-		m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-		m_commandList->IASetIndexBuffer(&m_indexBufferView);
-		m_commandList->DrawIndexedInstanced(12, 1, 0, 0, 0);
+
+		for (size_t i = 0; i < m_instances.size() - 1; i++) // Last instance is for plane, which used different command, thus .size() - 1
+		{
+			m_commandList->SetGraphicsRoot32BitConstant(2, static_cast<UINT>(i), 0);
+			m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
+			m_commandList->IASetIndexBuffer(&m_indexBufferView);
+			m_commandList->DrawIndexedInstanced(12, 1, 0, 0, 0);
+		}
 
 		// #DXR Extra: Per-Instance Data
 		// In a way similar to triangle rendering, rasterize the plane
+		m_commandList->SetGraphicsRoot32BitConstant(2, static_cast<UINT>(m_instances.size()-1), 0);
 		m_commandList->IASetVertexBuffers(0, 1, &m_planeBufferView);
 		m_commandList->DrawInstanced(6, 1, 0, 0);
 	}
@@ -1107,9 +1152,15 @@ void D3D12HelloTriangle::CreateCameraBuffer()
 		m_device.Get(), m_cameraBufferSize, D3D12_RESOURCE_FLAG_NONE,
 		D3D12_RESOURCE_STATE_GENERIC_READ, nv_helpers_dx12::kUploadHeapProps);
 
-	// Create a descriptor heap that will be used by the rasterization shaders
+	////// Create a descriptor heap that will be used by the rasterization shaders
+	////m_constHeap = nv_helpers_dx12::CreateDescriptorHeap(
+	////	m_device.Get(), 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+
+	// #DXR Extra: Refitting (Rasterization)
+	// Create a descriptor heap that will be used by the rasterization shaders:
+	// Camera matrices and per-instance matrices
 	m_constHeap = nv_helpers_dx12::CreateDescriptorHeap(
-		m_device.Get(), 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+		m_device.Get(), 2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
 	// Describe and create the constant buffer view
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
@@ -1122,6 +1173,20 @@ void D3D12HelloTriangle::CreateCameraBuffer()
 		m_constHeap->GetCPUDescriptorHandleForHeapStart();
 	m_device->CreateConstantBufferView(&cbvDesc, srvHandle);
 
+	// #DXR Extra: Refitting (Rasterization)
+	// Add per-instance buffer
+	srvHandle.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+	srvDesc.Buffer.FirstElement = 0;
+	srvDesc.Buffer.NumElements = static_cast<UINT>(m_instances.size());
+	srvDesc.Buffer.StructureByteStride = sizeof(InstanceProperties);
+	srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+	// Write the per-instance buffer view in the heap
+	m_device->CreateShaderResourceView(m_instanceProperties.Get(), &srvDesc, srvHandle);
 }
 
 /// <summary>
@@ -1191,12 +1256,12 @@ void D3D12HelloTriangle::CreatePlaneVB()
 	// Define the geometry for a plane.
 	Vertex planeVertices[] =
 	{
-	  {{-1.5f, -.8f, 01.5f}, {1.0f, 1.0f, 1.0f, 1.0f}}, // 0
-	  {{-1.5f, -.8f, -1.5f}, {1.0f, 1.0f, 1.0f, 1.0f}}, // 1
-	  {{01.5f, -.8f, 01.5f}, {1.0f, 1.0f, 1.0f, 1.0f}}, // 2
-	  {{01.5f, -.8f, 01.5f}, {1.0f, 1.0f, 1.0f, 1.0f}}, // 2
-	  {{-1.5f, -.8f, -1.5f}, {1.0f, 1.0f, 1.0f, 1.0f}}, // 1
-	  {{01.5f, -.8f, -1.5f}, {1.0f, 1.0f, 1.0f, 1.0f}}  // 4
+	  {{-1.5f, -.8f, 01.5f}, {0.7f, 0.7f, 0.3f, 1.0f}}, // 0
+	  {{-1.5f, -.8f, -1.5f}, {0.7f, 0.7f, 0.3f, 1.0f}}, // 1
+	  {{01.5f, -.8f, 01.5f}, {0.7f, 0.7f, 0.3f, 1.0f}}, // 2
+	  {{01.5f, -.8f, 01.5f}, {0.7f, 0.7f, 0.3f, 1.0f}}, // 2
+	  {{-1.5f, -.8f, -1.5f}, {0.7f, 0.7f, 0.3f, 1.0f}}, // 1
+	  {{01.5f, -.8f, -1.5f}, {0.7f, 0.7f, 0.3f, 1.0f}}  // 4
 	};
 
 	const UINT planeBufferSize = sizeof(planeVertices);
@@ -1334,5 +1399,38 @@ void D3D12HelloTriangle::CreateDepthBuffer()
 
 	m_device->CreateDepthStencilView(m_depthStencil.Get(), &dsvDesc,
 		m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+}
+
+// #DXR Extra: Refitting (Rasterization)
+
+/// <summary>
+/// Allocate memory to hold per-instance information
+/// </summary>
+void D3D12HelloTriangle::CreateInstancePropertiesBuffer()
+{
+	uint32_t bufferSize = ROUND_UP(static_cast<uint32_t>(m_instances.size()) * sizeof(InstanceProperties),
+									D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+
+	// Create the constant buffer for all matrices
+	m_instanceProperties = nv_helpers_dx12::CreateBuffer(
+		m_device.Get(), bufferSize, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ,
+		nv_helpers_dx12::kUploadHeapProps);
+}
+
+/// <summary>
+/// Copy the per-instance data into the buffer
+/// </summary>
+void D3D12HelloTriangle::UpdateInstancePropertiesBuffer()
+{
+	InstanceProperties* current = nullptr;
+	CD3DX12_RANGE readRange(0, 0); // We do not intend to read from this resource on the CPU.
+	ThrowIfFailed(m_instanceProperties->Map(0, &readRange, reinterpret_cast<void**>(&current)));
+	for (const auto& inst : m_instances)
+	{
+		current->objectToWorld = inst.second;
+		current++;
+	}
+	m_instanceProperties->Unmap(0, nullptr);
+
 }
 

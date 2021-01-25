@@ -14,3 +14,20 @@ struct Attributes
 {
   float2 bary;
 };
+
+struct ShadowHitInfo
+{
+    bool isHit;
+};
+
+struct ReflectionHitInfo
+{
+    float4 colorAndDistance;
+    float4 normalAndIsHit;
+};
+
+struct STriVertex
+{
+    float3 vertex;
+    float4 color;
+};

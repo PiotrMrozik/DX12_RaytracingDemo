@@ -1,18 +1,5 @@
 #include "Common.hlsl"
 
-// #DXR Extra: Another Ray Type
-struct ShadowHitInfo
-{
-    bool isHit;
-};
-
-
-// #DXR: Color by look-up in the vertex buffer (SRV)
-struct STriVertex
-{
-    float3 vertex;
-    float4 color;
-};
 
 // #DXR Extra: Per-Instance Data (Global Constant Buffer, Layout 2)
 struct MyStructColor
@@ -147,7 +134,6 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 	
 	payload.colorAndDistance = float4(hitColor * factor, RayTCurrent());
 }
-
 
 // #DXR Extra: Per-Instance Data
 [shader("closesthit")]

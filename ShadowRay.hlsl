@@ -1,15 +1,6 @@
+#include "Common.hlsl"
+
 // #DXR Extra: Another Ray Type
-
-// Ray payload for the shadow rays
-struct ShadowHitInfo
-{
-    bool isHit;
-};
-
-struct Attributes
-{
-    float2 uv;
-};
 
 [shader("closesthit")]
 void ShadowClosestHit(inout ShadowHitInfo hit, Attributes bary)

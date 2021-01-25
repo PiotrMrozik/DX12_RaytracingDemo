@@ -198,4 +198,15 @@ private:
 	ComPtr<ID3D12Resource> m_instanceProperties;
 	void CreateInstancePropertiesBuffer();
 	void UpdateInstancePropertiesBuffer();
+
+	// This value must be manually changed according to implemented setup in CreateShaderBindingTable()
+	int m_hitGroupsPerObject = 3;
+
+	// #DXR Custom: Reflections
+	ComPtr<IDxcBlob> m_reflectionLibrary;
+	ComPtr<ID3D12RootSignature> m_reflectionSignature;
+
+	// #DXR Custom: Indexed Plane
+	ComPtr<ID3D12Resource> m_planeIndexBuffer;
+	D3D12_INDEX_BUFFER_VIEW m_planeIndexBufferView;
 };

@@ -499,7 +499,8 @@ void D3D12HelloTriangle::PopulateCommandList()
 		// In a way similar to triangle rendering, rasterize the plane
 		m_commandList->SetGraphicsRoot32BitConstant(2, static_cast<UINT>(m_instances.size()-1), 0);
 		m_commandList->IASetVertexBuffers(0, 1, &m_planeBufferView);
-		m_commandList->DrawInstanced(6, 1, 0, 0);
+		m_commandList->IASetIndexBuffer(&m_planeIndexBufferView);
+		m_commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
 	}
 	else
 	{
@@ -716,7 +717,7 @@ void D3D12HelloTriangle::CreateTopLevelAS(const std::vector<std::pair<ComPtr<ID3
 		// Gather all the instances into the builder helper
 		for (size_t i = 0; i < instances.size(); i++)
 		{
-			m_topLevelASGenerator.AddInstance(instances[i].first.Get(), instances[i].second, static_cast<UINT>(i), static_cast<UINT>(2 * i));
+			m_topLevelASGenerator.AddInstance(instances[i].first.Get(), instances[i].second, static_cast<UINT>(i), static_cast<UINT>(m_hitGroupsPerObject * i));
 		}
 
 		// As for the bottom-level AS, the building of the AS requires some scratch space
@@ -771,7 +772,7 @@ void D3D12HelloTriangle::CreateAccelerationStructures()
 
 	// #DXR Extra: Per-Instance Data
 	AccelerationStructureBuffers planeBottomLevelBuffers =
-		CreateBottomLevelAS({ {m_planeBuffer.Get(), 6} });
+		CreateBottomLevelAS({ {m_planeBuffer.Get(), 4} }, { {m_planeIndexBuffer.Get(), 6} });
 
 	// Just one instance for now
 	m_instances =
@@ -881,6 +882,11 @@ void D3D12HelloTriangle::CreateRaytracingPipeline()
 	pipeline.AddLibrary(m_shadowLibrary.Get(), {L"ShadowClosestHit", L"ShadowMiss"});
 	m_shadowSignature = CreateHitSignature();
 
+	// #DXR Custom: Reflections
+	m_reflectionLibrary = nv_helpers_dx12::CompileShaderLibrary(L"ReflectionRay.hlsl");
+	pipeline.AddLibrary(m_reflectionLibrary.Get(), {L"ReflectionClosestHit", L"ReflectionMiss"});
+	m_reflectionSignature = CreateHitSignature();
+
 	// In a way similar to DLLs, each library is associated with a number of
 	// exported symbols. This has to be done explicitly in the lines below.
 	// Note that a single library can contain an arbitrary number of symbols,
@@ -923,6 +929,9 @@ void D3D12HelloTriangle::CreateRaytracingPipeline()
 	// #DXR Extra: Another Ray Type
 	pipeline.AddHitGroup(L"ShadowHitGroup", L"ShadowClosestHit");
 
+	// #DXR Custom: Reflections
+	pipeline.AddHitGroup(L"ReflectionHitGroup", L"ReflectionClosestHit");
+
 	// The following section associates the root signature to each shader. Note
 	// that we can explicitly show that some shaders share the same root signature
 	// (eg. Miss and ShadowMiss). Note that the hit shaders are now only referred
@@ -930,8 +939,9 @@ void D3D12HelloTriangle::CreateRaytracingPipeline()
 	// closest-hit shaders share the same root signature.
 
 	pipeline.AddRootSignatureAssociation(m_shadowSignature.Get(), { L"ShadowHitGroup" }); // #DXR Extra: Another Ray Type
+	pipeline.AddRootSignatureAssociation(m_reflectionSignature.Get(), { L"ReflectionHitGroup" }); // #DXR Custom: Reflections
 	pipeline.AddRootSignatureAssociation(m_rayGenSignature.Get(), { L"RayGen" });
-	pipeline.AddRootSignatureAssociation(m_missSignature.Get(), { L"Miss", L"ShadowMiss" }); // #DXR Extra: Another Ray Type
+	pipeline.AddRootSignatureAssociation(m_missSignature.Get(), { L"Miss", L"ShadowMiss", L"ReflectionMiss" }); // #DXR Extra: Another Ray Type // #DXR Custom: Reflections
 	//pipeline.AddRootSignatureAssociation(m_hitSignature.Get(), { L"HitGroup" });
 	
 	// #DXR Extra: Per-Instance Data
@@ -943,7 +953,7 @@ void D3D12HelloTriangle::CreateRaytracingPipeline()
 	// exchanged between shaders, such as the HitInfo structure in the HLSL code.
 	// It is important to keep this value as low as possible as a too high value
 	// would result in unnecessary memory consumption and cache trashing.
-	pipeline.SetMaxPayloadSize(4 * sizeof(float)); // RGB + distance
+	pipeline.SetMaxPayloadSize(8 * sizeof(float)); // RGB + distance  // #DXR Custom: reflections and normal + isHit
 
 	// Upon hitting a surface, DXR can provide several attributes to the hit. In
 	// our sample we just use the barycentric coordinates defined by the weights
@@ -1080,6 +1090,9 @@ void D3D12HelloTriangle::CreateShaderBindingTable()
 	// #DXR Extra: Another Ray Type
 	m_sbtHelper.AddMissProgram(L"ShadowMiss", {});
 
+	// #DXR Custom: Reflections
+	m_sbtHelper.AddMissProgram(L"ReflectionMiss", {});
+
 	// Adding the triangle hit shader
 	//m_sbtHelper.AddHitGroup(L"HitGroup", {(void*)(m_vertexBuffer->GetGPUVirtualAddress())});
 	
@@ -1101,6 +1114,13 @@ void D3D12HelloTriangle::CreateShaderBindingTable()
 			}
 		);
 		m_sbtHelper.AddHitGroup(L"ShadowHitGroup", {});
+		m_sbtHelper.AddHitGroup(L"ReflectionHitGroup", 
+			{
+				(void*)(m_vertexBuffer->GetGPUVirtualAddress()),
+				(void*)(m_indexBuffer->GetGPUVirtualAddress()),
+				(void*)(m_perInstanceConstantBuffers[i]->GetGPUVirtualAddress())
+			}
+		);
 	}
 
 	// The plane also uses a constant buffer for its vertex colors
@@ -1110,10 +1130,19 @@ void D3D12HelloTriangle::CreateShaderBindingTable()
 	m_sbtHelper.AddHitGroup(L"PlaneHitGroup", 
 		{
 			(void*)(m_planeBuffer->GetGPUVirtualAddress()), // #DXR Custom : Directional Shadows
+			(void*)(m_planeIndexBuffer->GetGPUVirtualAddress()), // #DXR Custom : Indexed Plane
 			heapPointer
 		}
 	); // #DXR Extra: Another Ray Type (add heap pointer)
 	m_sbtHelper.AddHitGroup(L"ShadowHitGroup", {});
+
+	// #DXR Custom: Reflections
+	m_sbtHelper.AddHitGroup(L"ReflectionHitGroup",
+		{
+			(void*)(m_planeBuffer->GetGPUVirtualAddress()),
+			(void*)(m_planeIndexBuffer->GetGPUVirtualAddress()),
+		}
+	);
 
 	// Compute the size of the SBT given the number of shaders and their parameters
 	uint32_t sbtSize = m_sbtHelper.ComputeSBTSize();
@@ -1260,9 +1289,9 @@ void D3D12HelloTriangle::CreatePlaneVB()
 	  {{-1.5f, -.8f, 01.5f}, {0.7f, 0.7f, 0.3f, 1.0f}}, // 0
 	  {{-1.5f, -.8f, -1.5f}, {0.7f, 0.7f, 0.3f, 1.0f}}, // 1
 	  {{01.5f, -.8f, 01.5f}, {0.7f, 0.7f, 0.3f, 1.0f}}, // 2
-	  {{01.5f, -.8f, 01.5f}, {0.7f, 0.7f, 0.3f, 1.0f}}, // 2
-	  {{-1.5f, -.8f, -1.5f}, {0.7f, 0.7f, 0.3f, 1.0f}}, // 1
-	  {{01.5f, -.8f, -1.5f}, {0.7f, 0.7f, 0.3f, 1.0f}}  // 4
+	  //{{01.5f, -.8f, 01.5f}, {0.7f, 0.7f, 0.3f, 1.0f}}, // 2
+	  //{{-1.5f, -.8f, -1.5f}, {0.7f, 0.7f, 0.3f, 1.0f}}, // 1
+	  {{01.5f, -.8f, -1.5f}, {0.7f, 0.7f, 0.3f, 1.0f}}  // 3
 	};
 
 	const UINT planeBufferSize = sizeof(planeVertices);
@@ -1272,11 +1301,12 @@ void D3D12HelloTriangle::CreatePlaneVB()
 	// marshalled over. Please read up on Default Heap usage. An upload heap is
 	// used here for code simplicity and because there are very few verts to
 	// actually transfer.
-	CD3DX12_HEAP_PROPERTIES heapProperty = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-	CD3DX12_RESOURCE_DESC bufferResource = CD3DX12_RESOURCE_DESC::Buffer(planeBufferSize);
 	ThrowIfFailed(m_device->CreateCommittedResource(
-		&heapProperty, D3D12_HEAP_FLAG_NONE, &bufferResource,
-		D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(planeBufferSize),
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
 		IID_PPV_ARGS(&m_planeBuffer)));
 
 	// Copy the triangle data to the vertex buffer.
@@ -1290,6 +1320,27 @@ void D3D12HelloTriangle::CreatePlaneVB()
 	m_planeBufferView.BufferLocation = m_planeBuffer->GetGPUVirtualAddress();
 	m_planeBufferView.StrideInBytes = sizeof(Vertex);
 	m_planeBufferView.SizeInBytes = planeBufferSize;
+
+	// #DXR Custom: Indexed Plane
+	std::vector<UINT> indices = { 0, 1, 2, 2, 1, 3};
+	const UINT indexBufferSize = static_cast<UINT>(indices.size()) * sizeof(UINT);
+
+	CD3DX12_HEAP_PROPERTIES heapProperty = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+	CD3DX12_RESOURCE_DESC bufferResource = CD3DX12_RESOURCE_DESC::Buffer(indexBufferSize);
+	ThrowIfFailed(m_device->CreateCommittedResource(
+		&heapProperty, D3D12_HEAP_FLAG_NONE, &bufferResource,
+		D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_planeIndexBuffer)));
+
+	// Copy the triangle data to the index buffer
+	UINT8* pIndexDataBegin;
+	ThrowIfFailed(m_planeIndexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pIndexDataBegin)));
+	memcpy(pIndexDataBegin, indices.data(), indexBufferSize);
+	m_planeIndexBuffer->Unmap(0, nullptr);
+
+	// Initialize the index buffer view
+	m_planeIndexBufferView.BufferLocation = m_planeIndexBuffer->GetGPUVirtualAddress();
+	m_planeIndexBufferView.Format = DXGI_FORMAT_R32_UINT;
+	m_planeIndexBufferView.SizeInBytes = indexBufferSize;
 }
 
 // #DXR Extra: Per-Instance Data

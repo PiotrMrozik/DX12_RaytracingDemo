@@ -1,13 +1,6 @@
 #include "Common.hlsl"
 
 // #DXR Custom: Reflections
-
-struct STriVertex
-{
-    float3 vertex;
-    float4 color;
-};
-
 cbuffer Colors : register(b0)
 {
     float3 A;
@@ -42,7 +35,7 @@ void ReflectionClosestHit(inout ReflectionHitInfo hit, Attributes attrib)
     
 	
     hit.colorAndDistance = float4(hitColor, RayTCurrent());
-    hit.normalAndIsHit = floatr(normal, 1.0f);
+    hit.normalAndIsHit = float4(normal, 1.0f);
 }
 
 [shader("miss")]

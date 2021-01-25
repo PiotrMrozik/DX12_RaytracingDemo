@@ -790,9 +790,12 @@ void D3D12HelloTriangle::CreateAccelerationStructures()
 	// Just one instance for now
 	m_instances =
 	{
+		//{bottomLevelBuffers.pResult, XMMatrixScaling(0.5f, 0.5f, 0.5f)},
+		//{bottomLevelBuffers.pResult, XMMatrixScaling(0.25f, 0.25f, 0.25f) * XMMatrixTranslation(1.0f, 1.0f, -1.0f)},
+		//{bottomLevelBuffers.pResult, XMMatrixScaling(5.0f, 5.0f, 5.0f) * XMMatrixTranslation(-5.0f, -5.0f, 5.0f)},
 		{bottomLevelBuffers.pResult, XMMatrixScaling(0.5f, 0.5f, 0.5f)},
-		{bottomLevelBuffers.pResult, XMMatrixScaling(0.25f, 0.25f, 0.25f) * XMMatrixTranslation(1.0f, 1.0f, -1.0f)},
-		{bottomLevelBuffers.pResult, XMMatrixScaling(5.0f, 5.0f, 5.0f) * XMMatrixTranslation(-5.0f, -5.0f, 5.0f)},
+		{bottomLevelBuffers.pResult, XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(1.0f, 0.0f, -1.0f)},
+		{bottomLevelBuffers.pResult, XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(-1.0f, 0.0f, -1.0f)},
 		// #DXR Extra: Per-Instance Data
 		{planeBottomLevelBuffers.pResult, XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, 0.0f, 0.0f)}
 	};
@@ -1416,7 +1419,7 @@ void D3D12HelloTriangle::CreatePerInstanceConstantBuffers()
 		XMVECTOR{0.7f, 0.0f, 1.0f, 1.0f},
 	};
 
-	m_perInstanceConstantBuffers.resize(3);
+	m_perInstanceConstantBuffers.resize(m_instances.size() - 1);
 	int i(0);
 	for (auto& cb : m_perInstanceConstantBuffers)
 	{
@@ -1427,7 +1430,7 @@ void D3D12HelloTriangle::CreatePerInstanceConstantBuffers()
 
 		uint8_t* pData;
 		ThrowIfFailed(cb->Map(0, nullptr, (void**)&pData));
-		memcpy(pData, &bufferData[i * 3], bufferSize);
+		memcpy(pData, &bufferData[(i%3) * 3], bufferSize); // %3 because there are only 3 entries in buffer data (A, B, C)
 		cb->Unmap(0, nullptr);
 		i++;
 	}

@@ -103,6 +103,6 @@ void ReflectionClosestHit(inout ReflectionHitInfo payload, Attributes attrib)
 [shader("miss")]
 void ReflectionMiss(inout ReflectionHitInfo hit : SV_RayPayload)
 {
-    hit.colorAndDistance = float4(0.0f, 0.2f, 0.7f, -1.0f);
+    hit.colorAndDistance = float4(SKY_COL, -1.0f);
     hit.normalAndIsHit = float4(0.0f, 0.0f, 0.0f, 0.0f);
 }

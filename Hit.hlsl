@@ -111,49 +111,47 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
     // between the hit/miss shaders and the raygen
     shadowPayload);
     
-    // Fire a reflection ray.
-    ray.Origin = worldOrigin;
-    ray.Direction = reflect(WorldRayDirection(), normal);
-    ray.TMin = 0.01f;
-    ray.TMax = 100000.0f;
+        
+    float3 currentPosition = worldOrigin;
+    float3 currentDirection = WorldRayDirection();
+    float3 currentNormal = normal;
     
-    // Initialize the ray payload
-    ReflectionHitInfo reflectionPayload;
-    reflectionPayload.colorAndDistance = float4(0.0f, 0.0f, 0.0f, 0.0f);
-    reflectionPayload.normalAndIsHit = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    ReflectionHitInfo reflectionPayloads[NUM_REFLECTIONS];
+    int lastValidReflection = 0;
+    int i;
+    for (i = 0; i < NUM_REFLECTIONS; i++)
+    {
+        currentDirection = reflect(currentDirection, currentNormal);
+        // Fire a reflection ray.
+        ray.Origin = currentPosition;
+        ray.Direction = currentDirection;
+        ray.TMin = 0.01f;
+        ray.TMax = 100000.0f;
     
-    // Trace the ray
-    TraceRay(
-    // Acceleration structure
-    SceneBVH,
-    // Flags can be used to specify the behavior upon hitting a surface
-    RAY_FLAG_NONE,
-    // Instance inclusion mask, which can be used to mask out some geometry to
-    // this ray by and-ing the mask with a geometry mask. The 0xFF flag then
-    // indicates no geometry will be masked
-    0xFF,
-    // Depending on the type of ray, a given object can have several hit
-    // groups attached (ie. what to do when hitting to compute regular
-    // shading, and what to do when hitting to compute shadows). Those hit
-    // groups are specified sequentially in the SBT, so the value below
-    // indicates which offset (on 4 bits) to apply to the hit groups for this
-    // ray. In this sample we now have three hit groups per object, where third
-    // hit group is for reflection rays, hence an offset of 2.
-    2,
-    // The offsets in the SBT can be computed from the object ID, its instance
-    // ID, but also simply by the order the objects have been pushed in the
-    // acceleration structure. This allows the application to group shaders in
-    // the SBT in the same order as they are added in the AS, in which case
-    // the value below represents the stride (4 bits representing the number
-    // of hit groups) between two consecutive objects.
-    0,
-    // Index of the miss shader: reflection miss shader
-    2,
-    // Ray information to trace
-    ray,
-    // Payload associated to the ray, which will be used to communicate
-    // between the hit/miss shaders and the raygen
-    reflectionPayload);
+        // Initialize the ray payload
+        reflectionPayloads[i].colorAndDistance = float4(0.0f, 0.0f, 0.0f, 0.0f);
+        reflectionPayloads[i].normalAndIsHit = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    
+        // Trace the ray
+        TraceRay(
+            SceneBVH, // Acceleration structure
+            RAY_FLAG_NONE, // Flags 
+            0xFF, // Instance inclusion mask: include all
+            2, // Hit group offset : reflection hit group
+            0, // SBT offset
+            2, // Index of the miss shader: reflection miss shader
+            ray, // Ray information to trace
+            reflectionPayloads[i]); // Payload
+        
+        lastValidReflection = i;
+        if (reflectionPayloads[i].normalAndIsHit.w == 0.0f)
+        {
+            break;
+        }
+        
+        currentPosition += currentDirection * reflectionPayloads[i].colorAndDistance.w;
+        currentNormal = reflectionPayloads[i].normalAndIsHit.xyz;
+    }
     
     // #DXR Custom: Directional Shadows
     //float factor = shadowPayload.isHit || !isLightValid ? 0.3f : 1.0f;
@@ -188,9 +186,14 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
     
     // #DXR Custom: Simple Lighting
     float3 hitColor = (diffFactor * diffuse + AMBIENT_FACTOR) * objectColor;
+    float3 reflColor = MIX_FACTOR * reflectionPayloads[lastValidReflection].colorAndDistance.xyz + (1.0f - MIX_FACTOR) * SKY_COL;
     
-    hitColor = 0.8f * hitColor + 0.2f * reflectionPayload.colorAndDistance.xyz;
+    for (i = lastValidReflection - 1; i >= 0; i--)
+    {
+        reflColor = MIX_FACTOR * reflectionPayloads[i].colorAndDistance.xyz + (1.0f - MIX_FACTOR) * reflColor;
+    }
     
+    hitColor = MIX_FACTOR * hitColor + (1.0f - MIX_FACTOR) * reflColor;
 	payload.colorAndDistance = float4(hitColor, RayTCurrent());
 }
 
@@ -274,49 +277,46 @@ void PlaneClosestHit(inout HitInfo payload, Attributes attrib)
     // between the hit/miss shaders and the raygen
     shadowPayload);
     
-    // Fire a reflection ray.
-    ray.Origin = worldOrigin;
-    ray.Direction = reflect(WorldRayDirection(), normal);
-    ray.TMin = 0.01f;
-    ray.TMax = 100000.0f;
+    float3 currentPosition = worldOrigin;
+    float3 currentDirection = WorldRayDirection();
+    float3 currentNormal = normal;
     
-    // Initialize the ray payload
-    ReflectionHitInfo reflectionPayload;
-    reflectionPayload.colorAndDistance = float4(0.0f, 0.0f, 0.0f, 0.0f);
-    reflectionPayload.normalAndIsHit = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    ReflectionHitInfo reflectionPayloads[NUM_REFLECTIONS];
+    int lastValidReflection = 0;
+    int i;
+    for (i = 0; i < NUM_REFLECTIONS; i++)
+    {
+        currentDirection = reflect(currentDirection, currentNormal);
+        // Fire a reflection ray.
+        ray.Origin = currentPosition;
+        ray.Direction = currentDirection;
+        ray.TMin = 0.01f;
+        ray.TMax = 100000.0f;
     
-    // Trace the ray
-    TraceRay(
-    // Acceleration structure
-    SceneBVH,
-    // Flags can be used to specify the behavior upon hitting a surface
-    RAY_FLAG_NONE,
-    // Instance inclusion mask, which can be used to mask out some geometry to
-    // this ray by and-ing the mask with a geometry mask. The 0xFF flag then
-    // indicates no geometry will be masked
-    0xFF,
-    // Depending on the type of ray, a given object can have several hit
-    // groups attached (ie. what to do when hitting to compute regular
-    // shading, and what to do when hitting to compute shadows). Those hit
-    // groups are specified sequentially in the SBT, so the value below
-    // indicates which offset (on 4 bits) to apply to the hit groups for this
-    // ray. In this sample we now have three hit groups per object, where third
-    // hit group is for reflection rays, hence an offset of 2.
-    2,
-    // The offsets in the SBT can be computed from the object ID, its instance
-    // ID, but also simply by the order the objects have been pushed in the
-    // acceleration structure. This allows the application to group shaders in
-    // the SBT in the same order as they are added in the AS, in which case
-    // the value below represents the stride (4 bits representing the number
-    // of hit groups) between two consecutive objects.
-    0,
-    // Index of the miss shader: reflection miss shader
-    2,
-    // Ray information to trace
-    ray,
-    // Payload associated to the ray, which will be used to communicate
-    // between the hit/miss shaders and the raygen
-    reflectionPayload);
+        // Initialize the ray payload
+        reflectionPayloads[i].colorAndDistance = float4(0.0f, 0.0f, 0.0f, 0.0f);
+        reflectionPayloads[i].normalAndIsHit = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    
+        // Trace the ray
+        TraceRay(
+            SceneBVH, // Acceleration structure
+            RAY_FLAG_NONE, // Flags 
+            0xFF, // Instance inclusion mask: include all
+            2, // Hit group offset : reflection hit group
+            0, // SBT offset
+            2, // Index of the miss shader: reflection miss shader
+            ray, // Ray information to trace
+            reflectionPayloads[i]); // Payload
+        
+        lastValidReflection = i;
+        if (reflectionPayloads[i].normalAndIsHit.w == 0.0f)
+        {
+            break;
+        }
+        
+        currentPosition += currentDirection * reflectionPayloads[i].colorAndDistance.w;
+        currentNormal = reflectionPayloads[i].normalAndIsHit.xyz;
+    }
     
     // #DXR Custom: Directional Shadows
     //float factor = shadowPayload.isHit || !isLightValid ? 0.3f : 1.0f;
@@ -327,9 +327,17 @@ void PlaneClosestHit(inout HitInfo payload, Attributes attrib)
     float3 barycentrics =
         float3(1.0f - attrib.bary.x - attrib.bary.y, attrib.bary.x, attrib.bary.y);
     
+    // #DXR Custom: Simple Lighting
     float3 hitColor = (diffFactor * diffuse + AMBIENT_FACTOR) * PLANE_COL;
     
-    hitColor = 0.8f * hitColor + 0.2f * reflectionPayload.colorAndDistance.xyz;
+    float3 reflColor = MIX_FACTOR * reflectionPayloads[lastValidReflection].colorAndDistance.xyz + (1.0f - MIX_FACTOR) * SKY_COL;
+    
+    for (i = lastValidReflection - 1; i >= 0; i--)
+    {
+        reflColor = MIX_FACTOR * reflectionPayloads[i].colorAndDistance.xyz + (1.0f - MIX_FACTOR) * reflColor;
+    }
+    
+    hitColor = MIX_FACTOR * hitColor + (1.0f - MIX_FACTOR) * reflColor;
     
     payload.colorAndDistance = float4(hitColor, RayTCurrent());
 

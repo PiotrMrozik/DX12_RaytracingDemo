@@ -55,16 +55,25 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
     }
     
     // #DXR Custom: Directional Shadows for tetrahedron
-    float3 lightPos = float3(2.0f, 2.0f, -2.0f);
+    //float3 lightPos = float3(2.0f, 2.0f, -2.0f);
     float3 worldOrigin = WorldRayOrigin() + RayTCurrent() * WorldRayDirection();
-    float3 lightDir = normalize(lightPos - worldOrigin);
-    bool isLightValid = dot(normal, lightDir) > 0.0f;
+    
+    float3 vectToLight = LIGHT_POS - worldOrigin;
+    float3 distToLight = length(vectToLight);
+    float3 lightDir = normalize(vectToLight);
+    
+    // #DXR Custom: Directional Shadows
+    //bool isLightValid = dot(normal, lightDir) > 0.0f;
+    
+    // #DXR Custom: Simple Lighting
+    float diff = max(dot(normal, lightDir), 0.0f);
+    float3 diffuse = diff * LIGHT_COL;
     
     RayDesc ray;
     ray.Origin = worldOrigin;
     ray.Direction = lightDir;
     ray.TMin = 0.01f;
-    ray.TMax = 100000.0f;
+    ray.TMax = distToLight;
     bool hit = true;
     
     // Initialize the ray payload
@@ -147,8 +156,10 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
     reflectionPayload);
     
     // #DXR Custom: Directional Shadows
-    float factor = shadowPayload.isHit || !isLightValid ? 0.3f : 1.0f;
+    //float factor = shadowPayload.isHit || !isLightValid ? 0.3f : 1.0f;
     
+    // #DXR Custom: Simple Lighting
+    float diffFactor = shadowPayload.isHit ? 0.0f : 1.0f;
     
     //float3 hitColor = BTriVertex[vertId + 0].color * barycentrics.x +
 	//				    BTriVertex[vertId + 1].color * barycentrics.y +
@@ -171,13 +182,16 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
     // hitColor = A * barycentrics.x + B * barycentrics.y + C * barycentrics.z;
     
     // #DXR Extra: Indexed Geometry
-    float3 hitColor = BTriVertex[indices[vertId + 0]].color * barycentrics.x +
-                      BTriVertex[indices[vertId + 1]].color * barycentrics.y +
-                      BTriVertex[indices[vertId + 2]].color * barycentrics.z;
+    float3 objectColor = BTriVertex[indices[vertId + 0]].color * barycentrics.x +
+                         BTriVertex[indices[vertId + 1]].color * barycentrics.y +
+                         BTriVertex[indices[vertId + 2]].color * barycentrics.z;
+    
+    // #DXR Custom: Simple Lighting
+    float3 hitColor = (diffFactor * diffuse + AMBIENT_FACTOR) * objectColor;
     
     hitColor = 0.8f * hitColor + 0.2f * reflectionPayload.colorAndDistance.xyz;
     
-	payload.colorAndDistance = float4(hitColor * factor, RayTCurrent());
+	payload.colorAndDistance = float4(hitColor, RayTCurrent());
 }
 
 // #DXR Extra: Per-Instance Data
@@ -198,15 +212,21 @@ void PlaneClosestHit(inout HitInfo payload, Attributes attrib)
     }
     
     // #DXR Extra: Another Ray Type
-    float3 lightPos = float3(2.0f, 2.0f, -2.0f);
+    //float3 lightPos = float3(2.0f, 2.0f, -2.0f);
     
     // Find the world-space hit position
     float3 worldOrigin = WorldRayOrigin() + RayTCurrent() * WorldRayDirection();
     
-    float3 lightDir = normalize(lightPos - worldOrigin);
+    float3 vectToLight = LIGHT_POS - worldOrigin;
+    float3 distToLight = length(vectToLight);
+    float3 lightDir = normalize(vectToLight);
     
     // #DXR Custom: Directional Shadows
-    bool isLightValid = dot(normal, lightDir) > 0.0f;
+    //bool isLightValid = dot(normal, lightDir) > 0.0f;
+    // #DXR Custom: Simple Lighting
+    float diff = max(dot(normal, lightDir), 0.0f);
+    float3 diffuse = diff * LIGHT_COL;
+    
     
     // Fire a shadow ray. The direction is hard-coded here, but can be fetched
     // from a constant-buffer
@@ -214,7 +234,7 @@ void PlaneClosestHit(inout HitInfo payload, Attributes attrib)
     ray.Origin = worldOrigin;
     ray.Direction = lightDir;
     ray.TMin = 0.01f;
-    ray.TMax = 100000.0f;
+    ray.TMax = distToLight;
     bool hit = true;
     
     // Initialize the ray payload
@@ -299,12 +319,15 @@ void PlaneClosestHit(inout HitInfo payload, Attributes attrib)
     reflectionPayload);
     
     // #DXR Custom: Directional Shadows
-    float factor = shadowPayload.isHit || !isLightValid ? 0.3f : 1.0f;
+    //float factor = shadowPayload.isHit || !isLightValid ? 0.3f : 1.0f;
+    
+    // #DXR Custom: Simple Lighting
+    float diffFactor = shadowPayload.isHit ? 0.0f : 1.0f;
     
     float3 barycentrics =
         float3(1.0f - attrib.bary.x - attrib.bary.y, attrib.bary.x, attrib.bary.y);
     
-    float3 hitColor = float3(0.7f, 0.7f, 0.3f) * factor;
+    float3 hitColor = (diffFactor * diffuse + AMBIENT_FACTOR) * PLANE_COL;
     
     hitColor = 0.8f * hitColor + 0.2f * reflectionPayload.colorAndDistance.xyz;
     

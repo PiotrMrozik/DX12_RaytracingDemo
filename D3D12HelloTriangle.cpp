@@ -966,7 +966,7 @@ void D3D12HelloTriangle::CreateRaytracingPipeline()
 	// then requires a trace depth of 1. Note that this recursion depth should be
 	// kept to a minimum for best performance. Path tracing algorithms can be
 	// easily flattened into a simple loop in the ray generation.
-	pipeline.SetMaxRecursionDepth(2);
+	pipeline.SetMaxRecursionDepth(3); // #DXR Custom: Simple Lighting - shading with shadows for reflected objects requires 3rd ray (raygen->reflection->shadow)
 
 	// Compile the pipeline for execution on the GPU
 	m_rtStateObject = pipeline.Generate();
@@ -1118,6 +1118,7 @@ void D3D12HelloTriangle::CreateShaderBindingTable()
 			{
 				(void*)(m_vertexBuffer->GetGPUVirtualAddress()),
 				(void*)(m_indexBuffer->GetGPUVirtualAddress()),
+				heapPointer,
 				(void*)(m_perInstanceConstantBuffers[i]->GetGPUVirtualAddress())
 			}
 		);
@@ -1141,6 +1142,7 @@ void D3D12HelloTriangle::CreateShaderBindingTable()
 		{
 			(void*)(m_planeBuffer->GetGPUVirtualAddress()),
 			(void*)(m_planeIndexBuffer->GetGPUVirtualAddress()),
+			heapPointer
 		}
 	);
 

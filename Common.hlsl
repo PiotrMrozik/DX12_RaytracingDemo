@@ -31,3 +31,10 @@ struct STriVertex
     float3 vertex;
     float4 color;
 };
+
+static const float3 LIGHT_POS = float3(2.0f, 2.0f, -2.0f);
+static const float3 LIGHT_COL = float3(1.0f, 1.0f, 1.0f);
+
+static const float3 PLANE_COL = float3(0.7f, 0.7f, 0.3f);
+
+static const float AMBIENT_FACTOR = 0.3f;

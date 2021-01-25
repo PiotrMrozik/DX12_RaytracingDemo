@@ -80,6 +80,9 @@ void D3D12HelloTriangle::OnInit()
 	// Create the shader binding table and indicating which shaders
 	// are invoked for each instance in the AS
 	CreateShaderBindingTable();
+
+	std::wstring windowText = L"DXR Demo: RTX OFF";
+	SetWindowText(Win32Application::GetHwnd(), windowText.c_str());
 }
 
 // Load the rendering pipeline dependencies.
@@ -633,6 +636,16 @@ void D3D12HelloTriangle::OnKeyUp(UINT8 key)
 	if (key == VK_SPACE)
 	{
 		m_raster = !m_raster;
+		if (m_raster)
+		{
+			std::wstring windowText = L"DXR Demo: RTX OFF";
+			SetWindowText(Win32Application::GetHwnd(), windowText.c_str());
+		}
+		else
+		{
+			std::wstring windowText = L"DXR Demo: RTX ON";
+			SetWindowText(Win32Application::GetHwnd(), windowText.c_str());
+		}
 	}
 	if (key == VK_ESCAPE)
 	{

@@ -86,5 +86,5 @@ void RayGen() {
 	// shaders and the raygen
 	payload);
 	
-	gOutput[launchIndex] = float4(payload.colorAndDistance.rgb, 1.f);
+    gOutput[launchIndex] = float4(saturate(payload.colorAndDistance.rgb), 1.f);
 }

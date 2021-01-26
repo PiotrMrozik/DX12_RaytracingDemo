@@ -40,8 +40,15 @@ void ReflectionClosestHit(inout ReflectionHitInfo payload, Attributes attrib)
     float3 lightDir = normalize(vectToLight);
     
     // #DXR Custom: Simple Lighting
+    float3 ambient = AMBIENT_FACTOR * LIGHT_COL;
+    
     float diff = max(dot(normal, lightDir), 0.0f);
     float3 diffuse = diff * LIGHT_COL;
+    
+    float3 reflectDir = reflect(-lightDir, normal);
+    float3 viewDir = normalize(-WorldRayDirection());
+    float3 spec = pow(max(dot(viewDir, reflectDir), 0.0f), SHININESS);
+    float3 specular = SPECULAR_FACTOR * spec * LIGHT_COL;
     
     RayDesc ray;
     ray.Origin = worldOrigin;
@@ -93,7 +100,7 @@ void ReflectionClosestHit(inout ReflectionHitInfo payload, Attributes attrib)
                          BTriVertex[indices[vertId + 2]].color * barycentrics.z;
     
     // #DXR Custom: Simple Lighting
-    float3 hitColor = (diffFactor * diffuse + AMBIENT_FACTOR) * objectColor;
+    float3 hitColor = (ambient + diffFactor * (diffuse + specular)) * objectColor;
     
 	
     payload.colorAndDistance = float4(hitColor, RayTCurrent());

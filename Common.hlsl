@@ -38,6 +38,8 @@ static const float3 LIGHT_COL = float3(1.0f, 1.0f, 1.0f);
 static const float3 PLANE_COL = float3(0.7f, 0.7f, 0.3f);
 
 static const float AMBIENT_FACTOR = 0.3f;
+static const float SPECULAR_FACTOR = 1.1f;
+static const float SHININESS = 64;
 
 static const float MIX_FACTOR = 0.6f;
 

@@ -66,8 +66,15 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
     //bool isLightValid = dot(normal, lightDir) > 0.0f;
     
     // #DXR Custom: Simple Lighting
+    float3 ambient = AMBIENT_FACTOR * LIGHT_COL;
+    
     float diff = max(dot(normal, lightDir), 0.0f);
     float3 diffuse = diff * LIGHT_COL;
+    
+    float3 reflectDir = reflect(-lightDir, normal);
+    float3 viewDir = normalize(-WorldRayDirection());
+    float3 spec = pow(max(dot(viewDir, reflectDir), 0.0f), SHININESS);
+    float3 specular = SPECULAR_FACTOR * spec * LIGHT_COL;
     
     RayDesc ray;
     ray.Origin = worldOrigin;
@@ -185,7 +192,8 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
                          BTriVertex[indices[vertId + 2]].color * barycentrics.z;
     
     // #DXR Custom: Simple Lighting
-    float3 hitColor = (diffFactor * diffuse + AMBIENT_FACTOR) * objectColor;
+    float3 hitColor = (ambient + diffFactor * (diffuse + specular)) * objectColor;
+    
     float3 reflColor = MIX_FACTOR * reflectionPayloads[lastValidReflection].colorAndDistance.xyz + (1.0f - MIX_FACTOR) * SKY_COL;
     
     for (i = lastValidReflection - 1; i >= 0; i--)
@@ -227,8 +235,15 @@ void PlaneClosestHit(inout HitInfo payload, Attributes attrib)
     // #DXR Custom: Directional Shadows
     //bool isLightValid = dot(normal, lightDir) > 0.0f;
     // #DXR Custom: Simple Lighting
+    float3 ambient = AMBIENT_FACTOR * LIGHT_COL;
+    
     float diff = max(dot(normal, lightDir), 0.0f);
     float3 diffuse = diff * LIGHT_COL;
+    
+    float3 reflectDir = reflect(-lightDir, normal);
+    float3 viewDir = normalize(-WorldRayDirection());
+    float3 spec = pow(max(dot(viewDir, reflectDir), 0.0f), SHININESS);
+    float3 specular = SPECULAR_FACTOR * spec * LIGHT_COL;
     
     
     // Fire a shadow ray. The direction is hard-coded here, but can be fetched
@@ -328,7 +343,7 @@ void PlaneClosestHit(inout HitInfo payload, Attributes attrib)
         float3(1.0f - attrib.bary.x - attrib.bary.y, attrib.bary.x, attrib.bary.y);
     
     // #DXR Custom: Simple Lighting
-    float3 hitColor = (diffFactor * diffuse + AMBIENT_FACTOR) * PLANE_COL;
+    float3 hitColor = (ambient + diffFactor * (diffuse + specular)) * PLANE_COL;
     
     float3 reflColor = MIX_FACTOR * reflectionPayloads[lastValidReflection].colorAndDistance.xyz + (1.0f - MIX_FACTOR) * SKY_COL;
     

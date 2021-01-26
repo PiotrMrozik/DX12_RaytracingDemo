@@ -126,7 +126,7 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
         ray.Origin = currentPosition;
         ray.Direction = currentDirection;
         ray.TMin = MIN_SECONDARY_RAY_T;
-        ray.TMax = 100000.0f;
+        ray.TMax = MAX_RAY_T;
     
         // Initialize the ray payload
         reflectionPayloads[i].colorAndDistance = float4(0.0f, 0.0f, 0.0f, 0.0f);
@@ -291,7 +291,7 @@ void PlaneClosestHit(inout HitInfo payload, Attributes attrib)
         ray.Origin = currentPosition;
         ray.Direction = currentDirection;
         ray.TMin = MIN_SECONDARY_RAY_T;
-        ray.TMax = 100000.0f;
+        ray.TMax = MAX_RAY_T;
     
         // Initialize the ray payload
         reflectionPayloads[i].colorAndDistance = float4(0.0f, 0.0f, 0.0f, 0.0f);

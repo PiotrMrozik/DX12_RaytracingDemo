@@ -49,5 +49,6 @@ static const float MIN_SECONDARY_RAY_T = 0.00001f;
 // TMin = 0.000001f - at this value artifacts are starting to be visible
 // TMin = 0.0f - artifacts clearly visible, image is very noisy
 // TMin = 0.01f - inside of geometries / interlapping faces generate visible "pass through" bands near intersections
+// TMin = 0.00001f - for set resolution (1280x720) virtually no "pass through" bands visible with no visible artifacts
 
 #define NUM_REFLECTIONS 5

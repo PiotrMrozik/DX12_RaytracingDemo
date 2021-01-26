@@ -794,8 +794,10 @@ void D3D12HelloTriangle::CreateAccelerationStructures()
 		//{bottomLevelBuffers.pResult, XMMatrixScaling(0.25f, 0.25f, 0.25f) * XMMatrixTranslation(1.0f, 1.0f, -1.0f)},
 		//{bottomLevelBuffers.pResult, XMMatrixScaling(5.0f, 5.0f, 5.0f) * XMMatrixTranslation(-5.0f, -5.0f, 5.0f)},
 		{bottomLevelBuffers.pResult, XMMatrixScaling(0.5f, 0.5f, 0.5f)},
-		{bottomLevelBuffers.pResult, XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(1.0f, 0.0f, -1.0f)},
-		{bottomLevelBuffers.pResult, XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(-1.0f, 0.0f, -1.0f)},
+		{bottomLevelBuffers.pResult, XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixRotationAxis(XMVECTOR{0.0f, 1.0f, 0.0f}, XMConvertToRadians(135.0f)) * XMMatrixTranslation(1.0f, 0.0f, -1.0f)},
+		{bottomLevelBuffers.pResult, XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixRotationAxis(XMVECTOR{0.0f, 1.0f, 0.0f}, XMConvertToRadians(-135.0f)) * XMMatrixTranslation(-1.0f, 0.0f, -1.0f)},
+		{bottomLevelBuffers.pResult, XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixRotationAxis(XMVECTOR{0.0f, 1.0f, 0.0f}, XMConvertToRadians(45.0f)) * XMMatrixTranslation(1.0f, 0.0f, 1.0f)},
+		{bottomLevelBuffers.pResult, XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixRotationAxis(XMVECTOR{0.0f, 1.0f, 0.0f}, XMConvertToRadians(-45.0f)) * XMMatrixTranslation(-1.0f, 0.0f, 1.0f)},
 		// #DXR Extra: Per-Instance Data
 		{planeBottomLevelBuffers.pResult, XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, 0.0f, 0.0f)}
 	};

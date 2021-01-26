@@ -36,7 +36,7 @@ void RayGen() {
     float4 target = mul(projectionI, float4(d.x, -d.y, 1.0f, 1.0f));
     ray.Direction = mul(viewI, float4(target.xyz, 0.0f));
 	ray.TMin = 0.0f;
-	ray.TMax = 100000.0f;
+    ray.TMax = MAX_RAY_T;
 
 	// Trace the ray
 	TraceRay(

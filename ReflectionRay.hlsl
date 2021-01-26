@@ -46,7 +46,7 @@ void ReflectionClosestHit(inout ReflectionHitInfo payload, Attributes attrib)
     RayDesc ray;
     ray.Origin = worldOrigin;
     ray.Direction = lightDir;
-    ray.TMin = 0.01f;
+    ray.TMin = MIN_SECONDARY_RAY_T;
     ray.TMax = distToLight;
     bool hit = true;
     

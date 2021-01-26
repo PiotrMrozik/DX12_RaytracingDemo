@@ -72,7 +72,7 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
     RayDesc ray;
     ray.Origin = worldOrigin;
     ray.Direction = lightDir;
-    ray.TMin = 0.01f;
+    ray.TMin = MIN_SECONDARY_RAY_T;
     ray.TMax = distToLight;
     bool hit = true;
     
@@ -125,7 +125,7 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
         // Fire a reflection ray.
         ray.Origin = currentPosition;
         ray.Direction = currentDirection;
-        ray.TMin = 0.01f;
+        ray.TMin = MIN_SECONDARY_RAY_T;
         ray.TMax = 100000.0f;
     
         // Initialize the ray payload
@@ -236,7 +236,7 @@ void PlaneClosestHit(inout HitInfo payload, Attributes attrib)
     RayDesc ray;
     ray.Origin = worldOrigin;
     ray.Direction = lightDir;
-    ray.TMin = 0.01f;
+    ray.TMin = MIN_SECONDARY_RAY_T;
     ray.TMax = distToLight;
     bool hit = true;
     
@@ -290,7 +290,7 @@ void PlaneClosestHit(inout HitInfo payload, Attributes attrib)
         // Fire a reflection ray.
         ray.Origin = currentPosition;
         ray.Direction = currentDirection;
-        ray.TMin = 0.01f;
+        ray.TMin = MIN_SECONDARY_RAY_T;
         ray.TMax = 100000.0f;
     
         // Initialize the ray payload
